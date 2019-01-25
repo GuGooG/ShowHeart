@@ -1,0 +1,232 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Heart</title>
+         <link rel="stylesheet" type="text/css" href="assets/css/style.css" />
+        <script type='text/javascript' src="assets/js/three.js" ></script>
+        <script type='text/javascript' src="assets/js/controls/TrackballControls.js"></script>
+        <script type='text/javascript' src="assets/js/AnaglyphEffect.js"></script>
+        <script type='text/javascript' src="assets/js/Detector.js"></script>
+        <script type='text/javascript' src="assets/js/THREEx.FullScreen.js"></script>
+        <script type='text/javascript' src="assets/js/THREEx.WindowResize.js"></script>
+         <script type='text/javascript' src="assets/js/dat.gui.js"></script>
+        
+        <script>
+            var renderer = null,
+            scene = null,
+            camera = null,
+            zmesh = null,
+            animating = false;
+            
+            var controls, projector;
+
+            var meshes = new Array();   
+            var mouse = new THREE.Vector2(), offset = new THREE.Vector3(), INTERSECTED, SELECTED;
+/*
+ In Three.js/examples
+ webgl_interactive_draggablecubes.html -->interaction
+    webgl_loader_json_objconverter.html -->load geometry        
+*/          
+            
+//SET UP        
+            function onLoad() {
+                // Grab our container div
+                var container = document.getElementById("heartContain");
+                
+                // Create the Three.js renderer, add it to our div, append to the DOM
+                renderer = new THREE.WebGLRenderer( { antialias: true } );
+                renderer.setSize(container.offsetWidth, container.offsetHeight);
+                container.appendChild( renderer.domElement );
+                
+                // Create a new Three.js scene
+                scene = new THREE.Scene();
+                
+                // Put in a camera
+                camera = new THREE.PerspectiveCamera( 45, container.offsetWidth / container.offsetHeight, 2, 4000 );
+                camera.position.set( 0, 0, -300 );
+                
+                
+                //Create mouse controls
+                controls = new THREE.TrackballControls ( camera, renderer.domElement );
+                controls.rotateSpeed = 1.5;
+                controls.zoomSpeed = 2.0;
+                controls.panSpeed = 1.0;
+                controls.noZoom = false;
+                controls.noPan = false;
+                controls.staticMoving = true;
+                controls.dynamicDampingFactor = 0.3;
+                
+                
+                // Add some light for ambiance
+                var light = new THREE.AmbientLight(0xA8A8A8);
+                light.position.set(0, 0, 1.0);
+                scene.add( light );
+                var light2 = new THREE.DirectionalLight(0xffffff, 1.0);
+                light2.position.set(0, 50, 1.5);
+                scene.add( light2 );
+
+                //add fog
+                //var fog = new THREE.fog();
+                
+        // Load Geometry -- webgl_loader_json_objconverter.html
+                var loader = new THREE.JSONLoader();
+
+
+
+                //return a funtion that builds the geometry and assigns to array
+                //http://stackoverflow.com/questions/10920372/associate-loaded-json-files-with-a-name-for-later-access
+                function makeHandler(meshName){
+                    return function(geometry){
+                        if (meshName =="Nerves"){
+                            //var nerveColor = new THREE.FaceColors(0xDDE079);
+                            mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial ( { ambient: 0xFFFF33  } ) );
+                        }else if(meshName == "heart"){
+                            var textMap = "assets/obj/heart_text_objs/"+meshName+".jpg";
+                            var specMap ="assets/obj/heart_text_objs/heartSPEC.jpg";
+                            var texture = new THREE.ImageUtils.loadTexture(textMap);
+                            var specTexture = new THREE.ImageUtils.loadTexture(specMap);
+                            mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial ( { map:texture, opacity: 0.8 }) );
+
+                        }else if(meshName == "RightCoronaryArtery" || meshName == "LeftCoronaryArtery" || meshName == "PosteriorInterventricularArtery" || meshName == "RightMarginalArtery" || meshName == "CircumflexArtery"){
+                            //var arteryColor = new THREE.Color(0xDDE079);
+                            mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial ( { ambient: 0x780000 } ) );
+
+                        }else{
+                            var textMap = "assets/obj/heart_text_objs/"+meshName+".jpg";
+                            var texture = new THREE.ImageUtils.loadTexture(textMap);
+                            mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial ( {map:texture}) );
+                        }
+                        
+                        //mesh.position.set( x, y, z );
+                        mesh.position.set(0, 0, 0);
+                        //mesh.color = [.5, .9, .5];
+                        mesh.doubleSided = true;
+                        scene.add(mesh);
+                        meshes[meshName] = mesh;
+                    }
+                }
+                
+                //var modelNames =[ "heart", "RightCoronaryArtery", "LeftCoronaryArtery", "PosteriorInterventricularArtery" , "RightMarginalArtery", "CircumflexArtery", "Veins","Atrium","Ventricles","Nerves","AorticValve","BicuspidValve","PulmonaryValve","TricuspidValve"];
+                var modelNames =[ "heart","Atrium","RightCoronaryArtery", "LeftCoronaryArtery", "PosteriorInterventricularArtery" , "RightMarginalArtery", "CircumflexArtery", "Veins","Ventricles","Nerves","AorticValve","BicuspidValve","PulmonaryValve","TricuspidValve"];
+
+
+                for( var i = 0; i < modelNames.length; i++){
+                    
+                    var path = "assets/obj/heart_text_objs/"+modelNames[i]+".js";
+                    meshName = modelNames[i];
+                    loader.load( path, makeHandler(meshName));
+
+                }
+                
+                //meshes[meshName].visible = true;
+                
+
+                    
+            window.addEventListener( 'resize', onWindowResize, false );
+            camera.lookAt( 0, -40, 0);
+                
+                // Add a mouse up handler to toggle the animation
+                addMouseHandler();
+
+                // Run our render loop
+                //run(allHeartGeom);
+                run();
+
+
+// /*---------------------------------------------------*/
+// /*------------------------GUI------------------------*/
+// /*---------------------------------------------------*/
+//          var HeartText = function(){
+//              this.message = 'dat.gui';
+//              this.opacity = 100;
+//              this.display = true;
+//              this.name = true;
+//            }
+
+//              var text = new HeartText();
+//              var gui = new dat.GUI({ autoplace: false });
+
+//              var customContainer = document.getElementById('heart-gui');
+//              customContainer.appendChild(gui.domElement);
+
+//              var modelGui = new Array();
+
+//              for(var i = 0; i < modelNames.length; i++){
+//                  modelGui[i] = gui.addFolder(modelNames[i]);
+//                  modelGui[i].add( meshes[modelNames[i]] ,'opacity', 0.0, 1.0 );
+//                  //modelGui[i].add( meshes[i] ,'name');
+//              }
+
+            }
+            
+
+            function onWindowResize() {
+
+                windowHalfX = window.innerWidth / 2;
+                windowHalfY = window.innerHeight / 2;
+
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+
+                renderer.setSize( window.innerWidth, window.innerHeight );
+
+            }
+            
+        //DRAW      
+            function render(){
+                renderer.render( scene, camera );
+                controls.update();
+
+            }
+            function run()
+            {
+                // Render the scene
+                
+                // Spin the cube for next frame
+                if (animating)
+                {
+                    //console.log(meshes);
+                    for(var i = 0; i < meshes.length; i++){
+                        meshes[i].rotation.y -= 0.01;
+                    }
+                }
+                // Ask for another frame
+                requestAnimationFrame(run); // will not render if browser is inactive
+                render();
+            }
+            
+            function addMouseHandler()
+            {
+                var dom = renderer.domElement;
+                dom.addEventListener( 'mouseup', onMouseUp, false);
+            }
+            
+            function onMouseUp    (event)
+            {
+                event.preventDefault();
+                animating = !animating;
+            }
+            </script>
+
+
+    </head>
+    <body onLoad="onLoad();" style="">
+
+    <script>
+
+
+    </script>
+        <!--<div id ="heart-gui" style="position:fixed; right:0; top:0;"></div>-->
+        <div id="heartContain"></div>
+        <div id="prompt" style="width:95%; height:6%; bottom:0; position:absolute;">
+
+             <script>
+            //  for(var i=0; meshes.legnth; i++){
+            //      console.log( modelNames[i] );
+            //  }
+             </script>
+        </div>
+        
+    </body>
+</html>
